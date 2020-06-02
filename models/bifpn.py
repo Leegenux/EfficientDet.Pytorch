@@ -131,8 +131,8 @@ class BIFPN(nn.Module):
 
 class BiFPNModule(nn.Module):
     def __init__(self,
-                 channels,
-                 levels,
+                 channels, # input channels
+                 levels,   # determines how much level there are, the paper says P3 ~ P7
                  init=0.5,
                  conv_cfg=None,
                  norm_cfg=None,
@@ -144,9 +144,9 @@ class BiFPNModule(nn.Module):
         self.levels = levels
         self.bifpn_convs = nn.ModuleList()
         # weighted
-        self.w1 = nn.Parameter(torch.Tensor(2, levels).fill_(init))
+        self.w1 = nn.Parameter(torch.Tensor(2, levels).fill_(init))  # 2 input fusion
         self.relu1 = nn.ReLU()
-        self.w2 = nn.Parameter(torch.Tensor(3, levels - 2).fill_(init))
+        self.w2 = nn.Parameter(torch.Tensor(3, levels - 2).fill_(init))  # 3 input fusion
         self.relu2 = nn.ReLU()
         for jj in range(2):
             for i in range(self.levels-1):  # 1,2,3
@@ -187,8 +187,9 @@ class BiFPNModule(nn.Module):
 
         for i in range(levels - 1, 0, -1):
             pathtd[i - 1] = (w1[0, i-1]*pathtd[i - 1] + w1[1, i-1]*F.interpolate(
-                pathtd[i], scale_factor=2, mode='nearest'))/(w1[0, i-1] + w1[1, i-1] + self.eps)
-            pathtd[i - 1] = self.bifpn_convs[idx_bifpn](pathtd[i - 1])
+                pathtd[i], scale_factor=2, mode='nearest'))/(w1[0, i-1] + w1[1, i-1] + self.eps) # for the first round, the last layer's interpolation fuses
+                                                                                                 # with the second to last layer
+            pathtd[i - 1] = self.bifpn_convs[idx_bifpn](pathtd[i - 1])                           # output to the next column
             idx_bifpn = idx_bifpn + 1
         # build down-top
         for i in range(0, levels - 2, 1):
